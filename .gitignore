@@ -1,0 +1,25 @@
+# Environment files
+.env
+.env.dev
+.env.prod
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
