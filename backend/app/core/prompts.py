@@ -83,6 +83,13 @@ Use ## headers for each task with:
 - **Description**: Brief description
 - **Estimated Effort**: Hours
 - **Dependencies**: List if any
+- **Affected Components**: List relevant modules/services from the system documentation if provided
+
+IMPORTANT: If system documentation is provided below, use it to:
+1. Reference specific existing components, services, or modules that will be modified
+2. Align task structure with the existing architecture
+3. Identify integration points with current systems
+4. Ensure naming conventions match the existing codebase
 
 Feature Request:
 {context}""",
@@ -98,10 +105,16 @@ Feature Request:
     # Feature creation from brief - generates full feature JSON
     "generate_feature": """Based on this feature request brief, generate a structured response in JSON format with the following fields:
 - title: A clear, concise title (max 60 chars) - plain text, no markdown
-- description: A detailed description of the feature (2-3 paragraphs explaining what it does, why it's needed, and how it should work). Use markdown formatting with headers (##), bullet points, bold text, etc. to make it well-structured and readable.
-- use_case: Who will use this and how it benefits them (1-2 paragraphs). Use markdown formatting with bullet points, bold text, etc. for clarity.
+- description: A detailed description of the feature (1 paragraph explaining what it does, why it's needed, and how it should work). Use markdown formatting with headers (##), bullet points, bold text, etc. to make it well-structured and readable.
+- use_case: Who will use this and how it benefits them (1 paragraph). Use markdown formatting with bullet points, bold text, etc. for clarity.
 - priority: One of "low", "medium", "high", "critical" based on the urgency/importance indicated
 - tags: An array of 2-4 relevant tags (lowercase, single words like "reporting", "ui", "integration", etc.)
+
+IMPORTANT: If system documentation is provided below, use it to:
+1. Reference specific existing components, services, or modules in the description
+2. Mention relevant integration points with current systems
+3. Use terminology and naming conventions consistent with the existing codebase
+4. Identify which parts of the system this feature would extend or modify
 
 Brief: {context}
 

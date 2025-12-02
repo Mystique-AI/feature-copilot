@@ -21,4 +21,8 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception as e:
+            # Log but don't crash if connection is already closed/broken during cleanup
+            print(f"Error closing database session: {e}")

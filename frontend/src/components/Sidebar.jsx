@@ -54,6 +54,17 @@ export default function Sidebar() {
             <p className="text-sm font-medium leading-normal">Dashboard</p>
           </Link>
           <Link 
+            to="/knowledge-base" 
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+              isActive('/knowledge-base') 
+                ? 'bg-primary/10 dark:bg-[#233648] text-primary dark:text-white' 
+                : 'text-gray-600 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5'
+            }`}
+          >
+            <span className="material-symbols-outlined">menu_book</span>
+            <p className="text-sm font-medium leading-normal">Knowledge Base</p>
+          </Link>
+          <Link 
             to="/settings" 
             className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
               isActive('/settings') 

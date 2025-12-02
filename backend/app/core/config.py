@@ -21,17 +21,19 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    AI_PROVIDER_LOW: str = "openai"
-    AI_PROVIDER_MEDIUM: str = "openai"
-    AI_PROVIDER_HIGH: str = "genai"
-
+    # AI API Keys - provider is auto-detected based on which key is set
     OPENAI_API_KEY: Optional[str] = None
     GENAI_API_KEY: Optional[str] = None
 
-    # Model configurations
+    # Optional: Custom OpenAI model names for each complexity level
     OPENAI_MODEL_LOW: str = "gpt-3.5-turbo"
     OPENAI_MODEL_MEDIUM: str = "gpt-4"
     OPENAI_MODEL_HIGH: str = "gpt-4-turbo"
+    
+    # Embedding model configuration
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
+    GENAI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_DIMENSIONS: int = 1024
 
     # Admin emails (comma-separated list) - these users can grant approver role
     ADMIN_EMAILS: str = ""

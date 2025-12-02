@@ -14,6 +14,7 @@ from ..models import user as user_models
 from ..schemas import feature as schemas
 from .auth import get_current_user
 from ..services.ai_service import ai_service
+from .knowledge_base import search_knowledge_base_internal
 
 router = APIRouter()
 
@@ -24,16 +25,81 @@ class AIRequest(BaseModel):
     complexity: str = "low"  # low, medium, high
 
 @router.post("/ai-assist")
-async def ai_assist(request: AIRequest, current_user: user_models.User = Depends(get_current_user)):
-    # Use centralized prompts
+async def ai_assist(
+    request: AIRequest, 
+    db: Session = Depends(database.get_db),
+    current_user: user_models.User = Depends(get_current_user)
+):
+    """
+    AI-assisted actions for feature requests.
+    For task generation, automatically fetches relevant knowledge base documentation.
+    """
+    kb_context = ""
+    
+    # For task generation and feature creation, fetch relevant KB documentation first
+    kb_enabled_actions = ["generate_tasks", "generate_feature"]
+    kb_results = []
+    
+    if request.action in kb_enabled_actions:
+        print(f"[AI Assist] Fetching KB context for {request.action}...")
+        kb_results = await search_knowledge_base_internal(
+            query=request.context,
+            db=db,
+            limit=5,
+            min_score=0.20  # 70% similarity cutoff
+        )
+        
+        if kb_results:
+            print(f"[AI Assist] Found {len(kb_results)} relevant KB documents")
+            kb_sections = []
+            for kb in kb_results:
+                kb_sections.append(
+                    f"### {kb['kb_name']} (Domain: {kb['domain']}, Score: {kb['similarity_score']})\n"
+                    f"{kb['content'][:2000]}"  # Limit content to avoid token overflow
+                )
+            
+            if request.action == "generate_tasks":
+                kb_context = (
+                    "\n\n---\n"
+                    "## Relevant System Documentation\n"
+                    "The following documentation describes the existing system architecture and components. "
+                    "Use this context to create tasks that align with the current implementation:\n\n"
+                    + "\n\n".join(kb_sections)
+                )
+            else:  # generate_feature
+                kb_context = (
+                    "\n\n---\n"
+                    "## Existing System Context\n"
+                    "The following documentation describes the existing system. "
+                    "Use this to ensure the feature description references relevant existing components and integrates well:\n\n"
+                    + "\n\n".join(kb_sections)
+                )
+        else:
+            print("[AI Assist] No KB documents found above 70% threshold")
+    
+    # Build the prompt
     if request.action in FEATURE_PROMPTS:
-        prompt = FEATURE_PROMPTS[request.action].format(context=request.context)
+        base_prompt = FEATURE_PROMPTS[request.action].format(context=request.context)
+        # Append KB context if available
+        if kb_context:
+            prompt = base_prompt + kb_context
+        else:
+            prompt = base_prompt
     else:
         # Fallback for custom actions (like 'generate' for feature creation)
         prompt = request.context
     
     response = await ai_service.generate_text(prompt, request.complexity)
-    return {"result": response}
+    
+    # Include KB metadata in response if context was used
+    result = {"result": response}
+    if kb_context and request.action in kb_enabled_actions:
+        result["kb_context_used"] = [
+            {"name": kb["kb_name"], "domain": kb["domain"], "score": kb["similarity_score"]}
+            for kb in kb_results
+        ]
+    
+    return result
 
 @router.post("/", response_model=schemas.FeatureRequest)
 def create_feature(

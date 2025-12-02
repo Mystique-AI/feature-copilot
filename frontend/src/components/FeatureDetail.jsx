@@ -1,6 +1,49 @@
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { aiAssist, transitionFeature, addComment, updateFeature, uploadAttachment, getAttachments, deleteAttachment } from '../services/api';
 import VoiceInput from './VoiceInput';
+
+// Reusable Markdown renderer component
+function MarkdownContent({ content, className = "" }) {
+  if (!content) return null;
+  
+  return (
+    <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+        p: ({children}) => <p className="my-1 text-sm text-gray-600 dark:text-gray-300">{children}</p>,
+        ul: ({children}) => <ul className="list-disc list-inside my-1 space-y-0.5 text-sm">{children}</ul>,
+        ol: ({children}) => <ol className="list-decimal list-inside my-1 space-y-0.5 text-sm">{children}</ol>,
+        li: ({children}) => <li className="text-gray-600 dark:text-gray-300">{children}</li>,
+        h1: ({children}) => <h1 className="text-lg font-bold mt-3 mb-1">{children}</h1>,
+        h2: ({children}) => <h2 className="text-base font-bold mt-2 mb-1">{children}</h2>,
+        h3: ({children}) => <h3 className="text-sm font-semibold mt-2 mb-1">{children}</h3>,
+        strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+        code: ({inline, children}) => inline 
+          ? <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-xs font-mono text-pink-600 dark:text-pink-400">{children}</code>
+          : <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>,
+        pre: ({children}) => <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded my-2 overflow-x-auto text-xs">{children}</pre>,
+        table: ({children}) => (
+          <div className="overflow-x-auto my-2">
+            <table className="min-w-full text-xs divide-y divide-gray-200 dark:divide-gray-700 border border-gray-200 dark:border-gray-700">
+              {children}
+            </table>
+          </div>
+        ),
+        thead: ({children}) => <thead className="bg-gray-50 dark:bg-gray-800">{children}</thead>,
+        tbody: ({children}) => <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{children}</tbody>,
+        th: ({children}) => <th className="px-2 py-1 text-left text-xs font-medium text-gray-500 dark:text-gray-400">{children}</th>,
+        td: ({children}) => <td className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300">{children}</td>,
+        a: ({href, children}) => <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+      }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 const STATUS_OPTIONS = [
   { value: 'submitted', label: 'Submitted', bgClass: 'bg-blue-100 dark:bg-blue-500/20', textClass: 'text-blue-800 dark:text-blue-400' },
@@ -22,6 +65,106 @@ const AI_ACTIONS = [
   { action: 'generate_tasks', label: '✨ Break into Tasks', className: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-500/30' },
 ];
 
+// Reusable Editable Section Component
+const EditableSection = ({ 
+  field, 
+  label, 
+  value, 
+  isMarkdown = true,
+  editingField,
+  startEditing,
+  cancelEditing,
+  saveField,
+  editValue,
+  setEditValue,
+  savingField
+}) => {
+  const isEditing = editingField === field;
+  
+  return (
+    <div className="group relative">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+        {!isEditing && (
+          <button 
+            onClick={() => startEditing(field, value)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-400 hover:text-primary"
+            title={`Edit ${label}`}
+          >
+            <span className="material-symbols-outlined text-xs">edit</span>
+          </button>
+        )}
+      </div>
+      
+      {isEditing ? (
+        <div className="mt-1">
+          {isMarkdown ? (
+            <textarea
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-full h-32 p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#233648] text-sm font-mono focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder={`Enter ${label.toLowerCase()} (markdown supported)...`}
+              autoFocus
+            />
+          ) : (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-full p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#233648] text-sm"
+              placeholder={`Enter ${label.toLowerCase()}...`}
+              autoFocus
+            />
+          )}
+          <div className="flex justify-end gap-2 mt-2">
+            <button 
+              onClick={cancelEditing}
+              className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              disabled={savingField}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={saveField}
+              disabled={savingField}
+              className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1"
+            >
+              {savingField && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>}
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1 min-h-[20px]">
+          {field === 'tags' ? (
+            <div className="flex flex-wrap gap-2">
+              {value && value.length > 0 ? (
+                value.map((tag) => (
+                  <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    {tag}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-400 italic">No tags</span>
+              )}
+            </div>
+          ) : isMarkdown ? (
+            <div className="relative">
+              {value ? (
+                <MarkdownContent content={value} />
+              ) : (
+                <p className="text-sm text-gray-400 italic">No content provided</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xl font-bold text-black dark:text-white">{value}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function FeatureDetail({ feature, onClose, onUpdate }) {
   const [activeTab, setActiveTab] = useState('details');
   const [aiLoading, setAiLoading] = useState(false);
@@ -34,12 +177,57 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
   const fileInputRef = useRef(null);
+  
+  // Editing state
+  const [editingField, setEditingField] = useState(null); // 'title', 'description', 'use_case', 'tags'
+  const [editValue, setEditValue] = useState('');
+  const [savingField, setSavingField] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'attachments') {
       loadAttachments();
     }
   }, [activeTab, feature.id]);
+
+  const startEditing = (field, value) => {
+    setEditingField(field);
+    // For tags, convert array to comma-separated string
+    if (field === 'tags' && Array.isArray(value)) {
+      setEditValue(value.join(', '));
+    } else {
+      setEditValue(value || '');
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const saveField = async () => {
+    if (!editingField) return;
+    
+    setSavingField(true);
+    try {
+      let updateData = {};
+      
+      if (editingField === 'tags') {
+        // Parse comma-separated tags
+        const tagsArray = editValue.split(',').map(t => t.trim()).filter(t => t);
+        updateData = { tags: tagsArray };
+      } else {
+        updateData = { [editingField]: editValue };
+      }
+      
+      await updateFeature(feature.id, updateData);
+      onUpdate(); // Refresh parent
+      setEditingField(null);
+    } catch (error) {
+      console.error(`Failed to update ${editingField}`, error);
+    } finally {
+      setSavingField(false);
+    }
+  };
 
   const loadAttachments = async () => {
     try {
@@ -120,11 +308,21 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
   const handleApplyAiResult = async () => {
     if (!aiResult) return;
     try {
+      let updateData = {};
+      
       if (aiResult.action === 'generate_ac') {
-        await updateFeature(feature.id, { acceptance_criteria: aiResult.result });
+        updateData = { acceptance_criteria: aiResult.result };
+      } else if (aiResult.action === 'generate_user_stories') {
+        updateData = { use_case: aiResult.result };
+      } else if (aiResult.action === 'elaborate' || aiResult.action === 'summarize') {
+        updateData = { description: aiResult.result };
       }
-      onUpdate();
-      setAiResult(null);
+
+      if (Object.keys(updateData).length > 0) {
+        await updateFeature(feature.id, updateData);
+        onUpdate();
+        setAiResult(null);
+      }
     } catch (error) {
       console.error('Failed to apply AI result', error);
     }
@@ -133,6 +331,16 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
   const getStatusClasses = (status) => {
     const opt = STATUS_OPTIONS.find(s => s.value === status);
     return opt ? `${opt.bgClass} ${opt.textClass}` : 'bg-gray-100 dark:bg-gray-500/20 text-gray-800 dark:text-gray-400';
+  };
+
+  const editProps = {
+    editingField,
+    startEditing,
+    cancelEditing,
+    saveField,
+    editValue,
+    setEditValue,
+    savingField
   };
 
   return (
@@ -166,10 +374,13 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === 'details' && (
           <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Title</p>
-              <h3 className="mt-1 text-xl font-bold text-black dark:text-white">{feature.title}</h3>
-            </div>
+            <EditableSection 
+              field="title" 
+              label="Title" 
+              value={feature.title} 
+              isMarkdown={false}
+              {...editProps}
+            />
 
             <div className="flex gap-4">
               <div className="flex-1">
@@ -188,37 +399,34 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
               </div>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Description</p>
-              <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{feature.description}</p>
-            </div>
+            <EditableSection 
+              field="description" 
+              label="Description" 
+              value={feature.description}
+              {...editProps}
+            />
 
-            {feature.use_case && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Use Case</p>
-                <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{feature.use_case}</p>
-              </div>
-            )}
+            <EditableSection 
+              field="use_case" 
+              label="Use Case" 
+              value={feature.use_case}
+              {...editProps}
+            />
 
-            {feature.acceptance_criteria && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Acceptance Criteria</p>
-                <p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{feature.acceptance_criteria}</p>
-              </div>
-            )}
+            <EditableSection 
+              field="acceptance_criteria" 
+              label="Acceptance Criteria" 
+              value={feature.acceptance_criteria}
+              {...editProps}
+            />
 
-            {feature.tags && feature.tags.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Tags</p>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {feature.tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <EditableSection 
+              field="tags" 
+              label="Tags" 
+              value={feature.tags} 
+              isMarkdown={false}
+              {...editProps}
+            />
 
             <div className="flex gap-4 text-sm text-gray-500">
               <div>
@@ -265,11 +473,27 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
                       onClick={handleApplyAiResult}
                       className="text-xs text-primary hover:underline"
                     >
-                      Apply to Feature
+                      Save to Acceptance Criteria
+                    </button>
+                  )}
+                  {aiResult.action === 'generate_user_stories' && (
+                    <button
+                      onClick={handleApplyAiResult}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Save to Use Case
+                    </button>
+                  )}
+                  {(aiResult.action === 'elaborate' || aiResult.action === 'summarize') && (
+                    <button
+                      onClick={handleApplyAiResult}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Save to Description
                     </button>
                   )}
                 </div>
-                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{aiResult.result}</p>
+                <MarkdownContent content={aiResult.result} />
               </div>
             )}
           </div>

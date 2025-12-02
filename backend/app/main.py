@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, users, features
+from .routers import auth, users, features, knowledge_base
 
 # Tables are managed by Alembic migrations
 # Run: cd backend && alembic upgrade head
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(features.router, prefix="/features", tags=["features"])
+app.include_router(knowledge_base.router, prefix="/knowledge-base", tags=["knowledge-base"])
 
 @app.get("/")
 def read_root():

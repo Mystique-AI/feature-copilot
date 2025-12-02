@@ -13,3 +13,5 @@ google-generativeai
 alembic
 email-validator
 aiofiles
+pypdf
+pgvector

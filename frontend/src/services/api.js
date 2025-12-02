@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -133,7 +133,8 @@ export const getAttachments = async (featureId) => {
 
 export const downloadAttachment = (attachmentId) => {
   const token = localStorage.getItem('token');
-  return `${API_URL}/features/attachments/${attachmentId}/download?token=${token}`;
+  const baseUrl = API_URL.startsWith('/') ? '' : API_URL;
+  return `${baseUrl}/features/attachments/${attachmentId}/download?token=${token}`;
 };
 
 export const deleteAttachment = async (attachmentId) => {
@@ -156,4 +157,70 @@ export const getDevelopers = async () => {
 export const updateUserRole = async (userId, role) => {
   const response = await api.put(`/users/${userId}/role?role=${role}`);
   return response.data;
+};
+
+// Knowledge Base
+export const getKnowledgeBases = async (domain = null) => {
+  const params = domain ? `?domain=${domain}` : '';
+  const response = await api.get(`/knowledge-base/${params}`);
+  return response.data;
+};
+
+export const getKnowledgeBase = async (id) => {
+  const response = await api.get(`/knowledge-base/${id}`);
+  return response.data;
+};
+
+export const getKnowledgeDomains = async () => {
+  const response = await api.get('/knowledge-base/domains');
+  return response.data;
+};
+
+export const uploadKnowledgeBase = async (file, name = null, domain = null, description = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (name) formData.append('name', name);
+  if (domain) formData.append('domain', domain);
+  if (description) formData.append('description', description);
+  
+  const response = await api.post('/knowledge-base/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const updateKnowledgeBase = async (id, data) => {
+  const response = await api.put(`/knowledge-base/${id}`, data);
+  return response.data;
+};
+
+export const reprocessKnowledgeBase = async (id, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/knowledge-base/${id}/reprocess`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const deleteKnowledgeBase = async (id) => {
+  const response = await api.delete(`/knowledge-base/${id}`);
+  return response.data;
+};
+
+export const getKnowledgeSection = async (kbId, address) => {
+  const response = await api.get(`/knowledge-base/${kbId}/section/${address}`);
+  return response.data;
+};
+
+export const downloadKnowledgeMarkdown = (id) => {
+  const token = localStorage.getItem('token');
+  const baseUrl = API_URL.startsWith('/') ? '' : API_URL;
+  return `${baseUrl}/knowledge-base/${id}/download/markdown`;
+};
+
+export const downloadKnowledgeJson = (id) => {
+  const token = localStorage.getItem('token');
+  const baseUrl = API_URL.startsWith('/') ? '' : API_URL;
+  return `${baseUrl}/knowledge-base/${id}/download/json`;
 };
