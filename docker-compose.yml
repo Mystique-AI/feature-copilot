@@ -1,25 +1,4 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database with pgvector extension
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: feature_dashboard_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-feature_dashboard}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # FastAPI Backend
   backend:
     build:
@@ -29,15 +8,10 @@ services:
     restart: unless-stopped
     env_file:
       - ${ENV_FILE:-.env}
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-feature_dashboard}
     volumes:
       - ${UPLOADS_PATH:-./uploads}:/app/uploads
     ports:
       - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
@@ -54,6 +28,3 @@ services:
       - "80:80"
     depends_on:
       - backend
-
-volumes:
-  postgres_data:
