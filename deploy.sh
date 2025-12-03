@@ -78,19 +78,19 @@ export UPLOADS_PATH
 
 if [[ "$ACTION" == "down" ]]; then
     echo "Stopping Feature Request Dashboard..."
-    docker-compose down
+    docker compose down
     echo "Done!"
 else
     echo "Starting Feature Request Dashboard..."
     echo "Environment file: $ENV_FILE"
     echo "Uploads path: $UPLOADS_PATH"
     echo ""
-    docker-compose up -d $BUILD_FLAG
+    docker compose up -d $BUILD_FLAG
     echo ""
     echo "Services started successfully!"
     echo "  Frontend: http://localhost"
     echo "  Backend API: http://localhost:8000"
     echo "  Database: localhost:5432"
     echo ""
-    echo "View logs: docker-compose logs -f"
+    echo "View logs: docker compose logs -f"
 fi
