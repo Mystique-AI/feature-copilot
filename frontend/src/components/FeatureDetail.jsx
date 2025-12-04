@@ -56,6 +56,13 @@ const STATUS_OPTIONS = [
   { value: 'deployed', label: 'Deployed', bgClass: 'bg-teal-100 dark:bg-teal-500/20', textClass: 'text-teal-800 dark:text-teal-400' },
 ];
 
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low', bgClass: 'bg-gray-100 dark:bg-gray-500/20', textClass: 'text-gray-800 dark:text-gray-400' },
+  { value: 'medium', label: 'Medium', bgClass: 'bg-blue-100 dark:bg-blue-500/20', textClass: 'text-blue-800 dark:text-blue-400' },
+  { value: 'high', label: 'High', bgClass: 'bg-orange-100 dark:bg-orange-500/20', textClass: 'text-orange-800 dark:text-orange-400' },
+  { value: 'critical', label: 'Critical', bgClass: 'bg-red-100 dark:bg-red-500/20', textClass: 'text-red-800 dark:text-red-400' },
+];
+
 const AI_ACTIONS = [
   { action: 'summarize', label: '✨ Summarize', className: 'bg-teal-500/20 text-teal-600 dark:text-teal-400 hover:bg-teal-500/30' },
   { action: 'elaborate', label: '✨ Elaborate', className: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 hover:bg-purple-500/30' },
@@ -176,12 +183,22 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusReason, setStatusReason] = useState('');
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [selectedPriority, setSelectedPriority] = useState('');
   const fileInputRef = useRef(null);
   
   // Editing state
   const [editingField, setEditingField] = useState(null); // 'title', 'description', 'use_case', 'tags'
   const [editValue, setEditValue] = useState('');
   const [savingField, setSavingField] = useState(false);
+
+  // Reset comments and attachments when feature changes
+  useEffect(() => {
+    setComments(feature.comments || []);
+    setAttachments([]);
+    setAiResult(null);
+    setEditingField(null);
+  }, [feature.id]);
 
   useEffect(() => {
     if (activeTab === 'attachments') {
@@ -305,6 +322,18 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
     }
   };
 
+  const handlePriorityChange = async () => {
+    if (!selectedPriority) return;
+    try {
+      await updateFeature(feature.id, { priority: selectedPriority });
+      onUpdate();
+      setShowPriorityModal(false);
+      setSelectedPriority('');
+    } catch (error) {
+      console.error('Failed to change priority', error);
+    }
+  };
+
   const handleApplyAiResult = async () => {
     if (!aiResult) return;
     try {
@@ -330,6 +359,11 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
 
   const getStatusClasses = (status) => {
     const opt = STATUS_OPTIONS.find(s => s.value === status);
+    return opt ? `${opt.bgClass} ${opt.textClass}` : 'bg-gray-100 dark:bg-gray-500/20 text-gray-800 dark:text-gray-400';
+  };
+
+  const getPriorityClasses = (priority) => {
+    const opt = PRIORITY_OPTIONS.find(p => p.value === priority);
     return opt ? `${opt.bgClass} ${opt.textClass}` : 'bg-gray-100 dark:bg-gray-500/20 text-gray-800 dark:text-gray-400';
   };
 
@@ -395,7 +429,13 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
               </div>
               <div className="flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Priority</p>
-                <p className="mt-1 text-sm text-black dark:text-white capitalize">{feature.priority}</p>
+                <button
+                  onClick={() => setShowPriorityModal(true)}
+                  className={`mt-1 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium cursor-pointer hover:opacity-80 ${getPriorityClasses(feature.priority)}`}
+                >
+                  {PRIORITY_OPTIONS.find(p => p.value === feature.priority)?.label || feature.priority}
+                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                </button>
               </div>
             </div>
 
@@ -643,6 +683,46 @@ export default function FeatureDetail({ feature, onClose, onUpdate }) {
                 className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 Update Status
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Priority Change Modal */}
+      {showPriorityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPriorityModal(false)}></div>
+          <div className="relative z-10 w-full max-w-md rounded-xl bg-white dark:bg-[#111a22] p-6 shadow-xl">
+            <h3 className="text-lg font-bold mb-4 text-black dark:text-white">Change Priority</h3>
+            <div className="space-y-3">
+              {PRIORITY_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedPriority(opt.value)}
+                  className={`w-full text-left px-4 py-2 rounded-lg text-sm ${
+                    selectedPriority === opt.value
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowPriorityModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePriorityChange}
+                disabled={!selectedPriority}
+                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              >
+                Update Priority
               </button>
             </div>
           </div>

@@ -12,6 +12,7 @@ __pycache__/
 .Python
 venv/
 ENV/
+backend/uploads/
 
 # Node
 node_modules/

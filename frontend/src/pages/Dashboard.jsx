@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import CreateFeatureModal from '../components/CreateFeatureModal';
 import FeatureDetail from '../components/FeatureDetail';
@@ -27,6 +28,7 @@ const STATUS_LABELS = {
 };
 
 export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState([]);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,26 @@ export default function Dashboard() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+
+  // Load feature from URL on mount
+  useEffect(() => {
+    const featureId = searchParams.get('feature');
+    if (featureId) {
+      loadFeatureFromUrl(featureId);
+    }
+  }, []);
+
+  const loadFeatureFromUrl = async (featureId) => {
+    try {
+      const fullFeature = await getFeature(parseInt(featureId));
+      setSelectedFeature(fullFeature);
+    } catch (error) {
+      console.error('Failed to load feature from URL', error);
+      // Remove invalid feature ID from URL
+      searchParams.delete('feature');
+      setSearchParams(searchParams);
+    }
+  };
 
   useEffect(() => {
     loadFeatures();
@@ -67,10 +89,20 @@ export default function Dashboard() {
     try {
       const fullFeature = await getFeature(feature.id);
       setSelectedFeature(fullFeature);
+      // Update URL with selected feature ID
+      setSearchParams({ feature: feature.id.toString() });
     } catch (error) {
       console.error(error);
       setSelectedFeature(feature);
+      setSearchParams({ feature: feature.id.toString() });
     }
+  };
+
+  const handleCloseFeature = () => {
+    setSelectedFeature(null);
+    // Remove feature ID from URL
+    searchParams.delete('feature');
+    setSearchParams(searchParams);
   };
 
   const handleCreateFeature = async (featureData) => {
@@ -227,7 +259,7 @@ export default function Dashboard() {
       {selectedFeature && (
         <FeatureDetail
           feature={selectedFeature}
-          onClose={() => setSelectedFeature(null)}
+          onClose={handleCloseFeature}
           onUpdate={handleFeatureUpdate}
         />
       )}

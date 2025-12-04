@@ -303,7 +303,8 @@ def get_comments(
     ]
 
 # Attachments endpoints
-UPLOAD_DIR = "uploads"
+# Store feature attachments in uploads/attachments directory (similar to knowledge base in uploads/knowledge)
+UPLOAD_DIR = "uploads/attachments"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/{feature_id}/attachments")
